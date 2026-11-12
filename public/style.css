@@ -132,3 +132,5 @@ button.primary.sent { background: var(--good); border-color: var(--good); }
 .overlay { position: fixed; inset: 0; background: rgba(29, 27, 24, .6); display: flex; align-items: center; justify-content: center; padding: 16px; z-index: 10; cursor: pointer; }
 .overlay .card { width: min(420px, 100%); margin: 0; }
 .overlay .qr { max-width: 320px; }
+button.stop { padding: 8px 14px; font-size: .95rem; border-color: var(--line); color: var(--muted); }
+button.stop:hover { border-color: #b91c1c; color: #b91c1c; }

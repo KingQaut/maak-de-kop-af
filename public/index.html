@@ -129,6 +129,8 @@ $('ansForm').addEventListener('submit', async (e) => {
 
 function render(s) {
   $('who').textContent = s.me.name;
+  // Na stoppen of afsluiten begint een nieuw spel met een leeg antwoordveld.
+  if (s.phase === 'lobby' || s.phase === 'end') lastRound = '';
   const plain = !!(s.headline && s.headline.plain);  // eenvoudige zin in plaats van krantenkop
   const kicker = `${plain ? 'Zin' : 'Kop'} ${s.idx + 1} van ${s.total}`;
 

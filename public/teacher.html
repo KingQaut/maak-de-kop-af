@@ -12,6 +12,7 @@
   <div class="masthead">
     <h1>Maak de kop af</h1>
     <div class="mastright">
+      <button class="stop" id="stopBtn" hidden>Stop het spel</button>
       <span class="meta" id="meta"></span>
       <button class="miniqr" id="miniQr" hidden title="Klik om de QR-code groot te tonen" aria-label="Toon de QR-code groot"></button>
     </div>
@@ -421,6 +422,9 @@ $('start').onclick = () => {
 $('revealBtn').onclick = () => host('reveal');
 $('nextBtn').onclick = () => host('next');
 $('againBtn').onclick = () => host('lobby');
+$('stopBtn').onclick = () => {
+  if (confirm('Het spel stoppen? Je gaat terug naar de voorbereiding. De studenten blijven in de klas.')) host('lobby');
+};
 
 $('miniQr').onclick = () => { $('qrOverlay').hidden = false; };
 $('qrOverlay').onclick = () => { $('qrOverlay').hidden = true; };
@@ -450,6 +454,7 @@ function renderJoin() {
 function render(s) {
   // Tijdens het spel blijft een kleine QR-code zichtbaar, zodat studenten opnieuw kunnen meedoen.
   $('miniQr').hidden = s.phase === 'lobby';
+  $('stopBtn').hidden = s.phase !== 'answer' && s.phase !== 'reveal';
   if (s.phase === 'lobby') $('qrOverlay').hidden = true;
   const plain = !!(s.headline && s.headline.plain);  // eenvoudige zin in plaats van krantenkop
   const kicker = `${plain ? 'Zin' : 'Kop'} ${s.idx + 1} van ${s.total}`;
