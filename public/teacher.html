@@ -11,7 +11,20 @@
 <main class="wide">
   <div class="masthead">
     <h1>Maak de kop af</h1>
-    <span class="meta" id="meta"></span>
+    <div class="mastright">
+      <span class="meta" id="meta"></span>
+      <button class="miniqr" id="miniQr" hidden title="Klik om de QR-code groot te tonen" aria-label="Toon de QR-code groot"></button>
+    </div>
+  </div>
+
+  <div class="overlay" id="qrOverlay" hidden>
+    <div class="card center">
+      <h2>Doe (weer) mee</h2>
+      <div class="qr" id="bigQr"></div>
+      <div class="bigcode" id="ovCode"></div>
+      <div class="joinurl" id="ovUrl"></div>
+      <p class="muted small">Klik om te sluiten</p>
+    </div>
   </div>
 
   <section id="lobby" hidden>
@@ -409,6 +422,10 @@ $('revealBtn').onclick = () => host('reveal');
 $('nextBtn').onclick = () => host('next');
 $('againBtn').onclick = () => host('lobby');
 
+$('miniQr').onclick = () => { $('qrOverlay').hidden = false; };
+$('qrOverlay').onclick = () => { $('qrOverlay').hidden = true; };
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') $('qrOverlay').hidden = true; });
+
 function show(id) {
   for (const s of document.querySelectorAll('section')) s.hidden = s.id !== id;
 }
@@ -422,13 +439,18 @@ function renderJoin() {
   const qr = qrcode(0, 'M');
   qr.addData(url);
   qr.make();
-  $('qr').innerHTML = qr.createSvgTag({ cellSize: 6, margin: 2, scalable: true });
-  $('bigcode').textContent = room.code;
-  $('joinurl').textContent = url.replace(/^https?:\/\//, '');
+  const svg = qr.createSvgTag({ cellSize: 6, margin: 2, scalable: true });
+  const shortUrl = url.replace(/^https?:\/\//, '');
+  for (const id of ['qr', 'miniQr', 'bigQr']) $(id).innerHTML = svg;
+  $('bigcode').textContent = $('ovCode').textContent = room.code;
+  $('joinurl').textContent = $('ovUrl').textContent = shortUrl;
   $('meta').replaceChildren(`${location.host} · code `, el('b', '', room.code));
 }
 
 function render(s) {
+  // Tijdens het spel blijft een kleine QR-code zichtbaar, zodat studenten opnieuw kunnen meedoen.
+  $('miniQr').hidden = s.phase === 'lobby';
+  if (s.phase === 'lobby') $('qrOverlay').hidden = true;
   const plain = !!(s.headline && s.headline.plain);  // eenvoudige zin in plaats van krantenkop
   const kicker = `${plain ? 'Zin' : 'Kop'} ${s.idx + 1} van ${s.total}`;
   if (s.phase === 'lobby') {
