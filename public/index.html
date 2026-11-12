@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Maak de kop af</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<main>
+  <div class="masthead">
+    <h1>Maak de kop af</h1>
+    <span class="meta" id="who"></span>
+  </div>
+
+  <section id="join">
+    <div class="card">
+      <h2>Doe mee</h2>
+      <form id="joinForm" autocomplete="off">
+        <label for="code">Code van de klas</label>
+        <input type="text" id="code" maxlength="4" inputmode="text" autocapitalize="characters" required>
+        <label for="name">Jouw naam</label>
+        <input type="text" id="name" maxlength="20" required>
+        <button class="primary big" type="submit">Meedoen</button>
+        <div class="error" id="joinErr"></div>
+      </form>
+    </div>
+  </section>
+
+  <section id="lobby" hidden>
+    <div class="card center">
+      <h2>Welkom!</h2>
+      <p>Wacht even. De docent start het spel.</p>
+      <div class="chips" id="lobbyPlayers" style="justify-content:center"></div>
+    </div>
+  </section>
+
+  <section id="answer" hidden>
+    <div class="kicker" id="aKicker"></div>
+    <p class="headline" id="aHeadline"></p>
+    <div class="card">
+      <form id="ansForm" autocomplete="off">
+        <label for="ans">Welk woord mist?</label>
+        <input type="text" id="ans" maxlength="30" autocapitalize="none" autocorrect="off" spellcheck="false">
+        <button class="primary big" type="submit">Verstuur</button>
+        <div class="error" id="ansErr"></div>
+      </form>
+      <p id="sent" class="center" hidden></p>
+    </div>
+  </section>
+
+  <section id="reveal" hidden>
+    <div class="kicker" id="rKicker"></div>
+    <p class="headline" id="rHeadline"></p>
+    <div class="result" id="rResult"></div>
+    <h2>Alle antwoorden</h2>
+    <div class="guesses" id="rGuesses"></div>
+  </section>
+
+  <section id="end" hidden>
+    <div class="card center">
+      <h2>Klaar!</h2>
+      <p>Goed gedaan. Tot de volgende keer!</p>
+    </div>
+  </section>
+</main>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+const KEY = 'mdka_player';
+let me = null;      // {code, pid}
+let lastSig = '';
+let lastRound = '';
+
+try { me = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch {}
+const urlCode = new URLSearchParams(location.search).get('k');
+if (urlCode) {
+  $('code').value = urlCode.toUpperCase();
+  if (me && me.code !== urlCode.toUpperCase()) me = null;
+}
+
+function show(id) {
+  for (const s of document.querySelectorAll('section')) s.hidden = s.id !== id;
+}
+
+function headline(node, h) {
+  const gap = el('span', 'gap' + (h.word ? ' filled' : ''), h.word || ' ');
+  node.replaceChildren(h.before, gap, h.after);
+}
+
+async function post(path, body) {
+  const r = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(data.error || 'Er ging iets mis.');
+  return data;
+}
+
+$('joinForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  $('joinErr').textContent = '';
+  const code = $('code').value.trim().toUpperCase();
+  try {
+    const { pid } = await post(`/api/room/${encodeURIComponent(code)}/join`, { name: $('name').value });
+    me = { code, pid };
+    try { localStorage.setItem(KEY, JSON.stringify(me)); } catch {}
+    poll();
+  } catch (err) { $('joinErr').textContent = err.message; }
+});
+
+$('ansForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  $('ansErr').textContent = '';
+  try {
+    await post(`/api/room/${me.code}/answer`, { pid: me.pid, answer: $('ans').value });
+    $('ans').blur();
+    poll();
+  } catch (err) { $('ansErr').textContent = err.message; }
+});
+
+function render(s) {
+  $('who').textContent = s.me.name;
+  const kicker = `Kop ${s.idx + 1} van ${s.total}`;
+
+  if (s.phase === 'lobby') {
+    $('lobbyPlayers').replaceChildren(...s.players.map((p) => el('span', 'chip', p.name)));
+    return show('lobby');
+  }
+  if (s.phase === 'answer') {
+    const round = s.idx + '|' + s.headline.before + '|' + s.headline.after;
+    if (round !== lastRound) { lastRound = round; $('ans').value = ''; $('ansErr').textContent = ''; }
+    $('aKicker').textContent = kicker;
+    headline($('aHeadline'), s.headline);
+    $('sent').hidden = !s.me.answer;
+    $('sent').textContent = s.me.answer ? `Jouw antwoord: "${s.me.answer}". Je mag het nog veranderen.` : '';
+    return show('answer');
+  }
+  if (s.phase === 'reveal') {
+    $('rKicker').textContent = kicker;
+    headline($('rHeadline'), s.headline);
+    const r = $('rResult');
+    r.className = 'result ' + s.me.result;
+    r.textContent = {
+      correct: 'Precies goed! Dit woord staat in de krant.',
+      ok: `Jouw woord "${s.me.answer}" kan ook! De krant schrijft: "${s.headline.word}".`,
+      other: `Jouw woord: "${s.me.answer}". De krant schrijft: "${s.headline.word}".`,
+      none: `De krant schrijft: "${s.headline.word}".`,
+    }[s.me.result];
+    $('rGuesses').replaceChildren(...s.groups.map((g) => {
+      const d = el('div', 'guess' + (g.correct ? ' correct' : g.ok ? ' ok' : ''));
+      d.append(el('div', 'w', g.text), el('div', 'n', g.names.join(', ')));
+      if (g.correct) d.append(el('div', 'tag', 'Zoals in de krant'));
+      else if (g.ok) d.append(el('div', 'tag', 'Kan ook!'));
+      return d;
+    }));
+    return show('reveal');
+  }
+  show('end');
+}
+
+async function poll() {
+  if (!me) return show('join');
+  try {
+    const r = await fetch(`/api/room/${me.code}/state?pid=${me.pid}`, { cache: 'no-store' });
+    if (r.status === 404) {
+      me = null; lastSig = '';
+      try { localStorage.removeItem(KEY); } catch {}
+      $('who').textContent = '';
+      return show('join');
+    }
+    if (!r.ok) return;
+    const text = await r.text();
+    if (text === lastSig) return;
+    lastSig = text;
+    render(JSON.parse(text));
+  } catch {}
+}
+
+poll();
+setInterval(poll, 1000);
+</script>
+</body>
+</html>
