@@ -18,7 +18,7 @@
     <div class="cols">
       <div class="card">
         <h2>1. Koppen voorbereiden</h2>
-        <p class="muted small">Kies nieuws van vandaag of eenvoudige zinnen (A1) en klik op de regels die je wilt gebruiken. Klik daarna onderaan in elke regel op het woord dat de studenten moeten raden. De koppen blijven bewaard op deze laptop.</p>
+        <p class="muted small">Kies nieuws van vandaag of zinnen op niveau A1, A2 of B1 en klik op de regels die je wilt gebruiken. Klik daarna onderaan in elke regel op het woord dat de studenten moeten raden. De koppen blijven bewaard op deze laptop.</p>
         <div class="news">
           <div class="row">
             <select id="feed" aria-label="Bron"></select>
@@ -140,7 +140,7 @@ $('add').onclick = () => { addLines($('paste').value.split('\n')); $('paste').va
 $('sample').onclick = () => addLines(SAMPLE);
 $('clear').onclick = () => { if (confirm('Alle koppen wissen?')) { heads = []; save('mdka_heads', heads); renderHeads(); renderNews(); } };
 
-// --- Eenvoudige zinnen (A1) ---
+// --- Zinnen per niveau (A1, A2, B1) ---
 // Het woord tussen [haken] is het woord dat de studenten raden; de docent kan een ander woord kiezen.
 const SIMPLE = {
   dag: ['Dagelijks leven', [
@@ -176,7 +176,144 @@ const SIMPLE = {
     'Ik betaal elke maand [huur].', 'De [keuken] is klein.', 'Ik zet het afval [buiten].',
     'De verwarming staat [aan].', 'Wij hebben een kleine [tuin].']],
 };
-const simpleItems = (key) => SIMPLE[key][1].map((s) => ({
+// Hogere niveaus: dezelfde thema's als A1.
+const MORE = {
+  A2: {
+    dag: [
+      "Gisteren ben ik vroeg naar bed [gegaan].",
+      "Ik sta meestal vroeg op, omdat ik om acht uur moet [beginnen].",
+      "Na het eten [ruim] ik de keuken op.",
+      "Ik heb vanmorgen geen tijd gehad om te [ontbijten].",
+      "Op zondag doe ik meestal de [was].",
+      "Als ik thuiskom, zet ik eerst [thee].",
+    ],
+    winkel: [
+      "Deze schoenen zijn [goedkoper] dan die andere.",
+      "Ik heb gisteren een nieuwe jas [gekocht].",
+      "Heeft u deze broek ook in een andere [maat]?",
+      "Ik wil deze trui graag [ruilen].",
+      "De groente is deze week in de [aanbieding].",
+      "Ik ben mijn [bonnetje] kwijt.",
+    ],
+    familie: [
+      "Vorige week heb ik mijn tante [bezocht].",
+      "Mijn zoon is [jonger] dan mijn dochter.",
+      "Wij hebben elkaar op het werk leren [kennen].",
+      "Ik heb mijn ouders al een jaar niet [gezien].",
+      "Mijn vriendin heeft mij voor haar verjaardag [uitgenodigd].",
+      "Zaterdag komen mijn vrienden bij mij [eten].",
+    ],
+    werk: [
+      "Ik heb gisteren een [sollicitatiegesprek] gehad.",
+      "Ik moet mij ziek melden bij mijn [baas].",
+      "Ik zoek een baan voor drie dagen per [week].",
+      "Mijn collega heeft mij goed [geholpen].",
+      "Ik wil een [cursus] volgen om beter Nederlands te leren.",
+      "Morgen heb ik om tien uur een [vergadering].",
+    ],
+    vervoer: [
+      "De trein heeft tien minuten [vertraging].",
+      "Ik moet in Utrecht [overstappen].",
+      "Ik heb mijn rijbewijs vorig jaar [gehaald].",
+      "Vergeet niet om in de bus in te [checken].",
+      "Mijn fiets is kapot, dus ik ga [lopen].",
+      "Hoe lang duurt de [reis] naar Groningen?",
+    ],
+    gezond: [
+      "Ik heb de dokter gebeld, omdat ik koorts [heb].",
+      "U moet deze medicijnen drie keer per dag [innemen].",
+      "Ik ben gisteren van mijn fiets [gevallen].",
+      "De dokter heeft mij naar het ziekenhuis [gestuurd].",
+      "Ik heb al een week last van mijn [rug].",
+      "Voor dit medicijn heeft u een [recept] nodig.",
+    ],
+    weer: [
+      "Gisteren heeft het de hele dag [geregend].",
+      "Morgen wordt het [warmer] dan vandaag.",
+      "Als het mooi weer is, gaan wij naar het [strand].",
+      "Het is glad buiten, dus wees [voorzichtig].",
+      "In de lente worden de bomen weer [groen].",
+      "Neem een jas mee, want het wordt [koud].",
+    ],
+    wonen: [
+      "Ik ben vorige maand [verhuisd].",
+      "Wij zoeken een groter huis, omdat wij een baby [krijgen].",
+      "De kraan in de badkamer is [kapot].",
+      "Ik heb de huisbaas gebeld over de [verwarming].",
+      "Het afval wordt op dinsdag [opgehaald].",
+      "Mijn nieuwe buurman heeft zich gisteren [voorgesteld].",
+    ],
+  },
+  B1: {
+    dag: [
+      "Hoewel ik moe was, ben ik toch gaan [sporten].",
+      "Ik probeer elke dag een half uur te [bewegen].",
+      "Sinds ik een nieuwe baan heb, heb ik minder vrije [tijd].",
+      "Ik ben eraan gewend om vroeg op te [staan].",
+      "Het kost mij veel moeite om 's ochtends wakker te [worden].",
+      "In mijn vrije tijd doe ik [vrijwilligerswerk] in de buurt.",
+    ],
+    winkel: [
+      "Ik heb de broek teruggebracht, omdat hij niet goed [paste].",
+      "Als u niet tevreden bent, krijgt u uw geld [terug].",
+      "Online winkelen is makkelijk, maar ik pas kleren liever in de [winkel].",
+      "De prijzen zijn dit jaar flink [gestegen].",
+      "Op dit apparaat zit twee jaar [garantie].",
+      "Ik vergelijk altijd de prijzen voordat ik iets [koop].",
+    ],
+    familie: [
+      "Ik zou mijn familie vaker willen [zien].",
+      "Mijn zus, die in Canada woont, komt deze zomer op [bezoek].",
+      "Wij hebben afgesproken dat wij elkaar elke week [bellen].",
+      "Mijn ouders hebben mij altijd [gesteund].",
+      "Het is belangrijk dat je op je vrienden kunt [vertrouwen].",
+      "Sinds mijn broer kinderen heeft, zie ik hem [zelden].",
+    ],
+    werk: [
+      "Ik heb gesolliciteerd op een baan die goed bij mij [past].",
+      "Mijn contract wordt volgende maand [verlengd].",
+      "Tijdens het gesprek werd mij gevraagd naar mijn [ervaring].",
+      "Ik vind het belangrijk om goed met collega's samen te [werken].",
+      "Als ik mijn diploma heb gehaald, wil ik verder [studeren].",
+      "Ik heb een [opleiding] gevolgd om in de zorg te kunnen werken.",
+    ],
+    vervoer: [
+      "Door de storing reden er vanochtend geen [treinen].",
+      "Als ik eerder was vertrokken, had ik de trein wel [gehaald].",
+      "Steeds meer mensen kiezen voor een elektrische [auto].",
+      "Vanwege de werkzaamheden moet u een andere route [nemen].",
+      "Het openbaar vervoer is duur, maar wel beter voor het [milieu].",
+      "Ik heb een boete gekregen, omdat ik door rood ben [gereden].",
+    ],
+    gezond: [
+      "De huisarts heeft mij naar een specialist [verwezen].",
+      "Het is belangrijk dat u voldoende [slaapt].",
+      "Ik maak mij zorgen over de [gezondheid] van mijn vader.",
+      "De operatie is gelukkig goed [gegaan].",
+      "Sinds ik gestopt ben met roken, voel ik mij veel [beter].",
+      "Deze behandeling wordt door de verzekering [vergoed].",
+    ],
+    weer: [
+      "Volgens de weersverwachting gaat het morgen [sneeuwen].",
+      "Door de storm zijn er veel bomen [omgevallen].",
+      "Als het zo blijft regenen, wordt de wedstrijd [afgelast].",
+      "Het klimaat verandert, waardoor de zomers warmer [worden].",
+      "Ondanks de regen zijn wij toch gaan [wandelen].",
+      "Het was zo mistig dat ik bijna niets kon [zien].",
+    ],
+    wonen: [
+      "Ik sta al drie jaar ingeschreven voor een [huurwoning].",
+      "De huur wordt elk jaar in juli [verhoogd].",
+      "Als u gaat verhuizen, moet u dat aan de gemeente [doorgeven].",
+      "Wij hebben last van de buren, die vaak harde muziek [draaien].",
+      "De woningcorporatie heeft beloofd het lek snel te [repareren].",
+      "Ik overweeg om een huis te [kopen].",
+    ],
+  },
+};
+const LEVELS = { A1: Object.fromEntries(Object.entries(SIMPLE).map(([k, v]) => [k, v[1]])), ...MORE };
+// key is bijvoorbeeld 'A2:vervoer'
+const simpleItems = (key) => LEVELS[key.split(':')[0]][key.split(':')[1]].map((s) => ({
   title: s.replace(/[\[\]]/g, ''), hidden: split(s).findIndex((w) => w.includes('[')), plain: true, link: '',
 }));
 
@@ -187,7 +324,7 @@ function fillSources(feeds) {
     g.append(...opts.map(([value, text]) => { const o = el('option', '', text); o.value = value; return o; }));
     return g;
   };
-  const groups = [group('Eenvoudige zinnen (A1)', Object.entries(SIMPLE).map(([k, v]) => ['zin:' + k, v[0]]))];
+  const groups = Object.keys(LEVELS).map((lvl) => group('Zinnen ' + lvl, Object.keys(LEVELS[lvl]).map((k) => [`zin:${lvl}:${k}`, `${lvl} · ${SIMPLE[k][0]}`])));
   if (feeds.length) groups.unshift(group('Nieuws van vandaag', feeds.map((f) => [f.key, f.label])));
   $('feed').replaceChildren(...groups);
   updateFetchLabel();
