@@ -42,7 +42,7 @@
       <form id="ansForm" autocomplete="off">
         <label for="ans">Welk woord mist?</label>
         <input type="text" id="ans" maxlength="30" autocapitalize="none" autocorrect="off" spellcheck="false">
-        <button class="primary big" type="submit">Verstuur</button>
+        <button class="primary big" type="submit" id="sendBtn">Verstuur</button>
         <div class="error" id="ansErr"></div>
       </form>
       <p id="sent" class="center" hidden></p>
@@ -72,6 +72,7 @@ const KEY = 'mdka_player';
 let me = null;      // {code, pid}
 let lastSig = '';
 let lastRound = '';
+let sentAnswer = '';  // het antwoord dat nu bij de docent staat
 
 try { me = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch {}
 const urlCode = new URLSearchParams(location.search).get('k');
@@ -108,6 +109,13 @@ $('joinForm').addEventListener('submit', async (e) => {
   } catch (err) { $('joinErr').textContent = err.message; }
 });
 
+function updateSendBtn() {
+  const same = sentAnswer && $('ans').value.trim() === sentAnswer;
+  $('sendBtn').textContent = !sentAnswer ? 'Verstuur' : same ? 'Verstuurd ✓' : 'Verstuur nieuw antwoord';
+  $('sendBtn').classList.toggle('sent', !!same);
+}
+$('ans').addEventListener('input', updateSendBtn);
+
 $('ansForm').addEventListener('submit', async (e) => {
   e.preventDefault();
   $('ansErr').textContent = '';
@@ -131,6 +139,8 @@ function render(s) {
     if (round !== lastRound) { lastRound = round; $('ans').value = ''; $('ansErr').textContent = ''; }
     $('aKicker').textContent = kicker;
     headline($('aHeadline'), s.headline);
+    sentAnswer = s.me.answer;
+    updateSendBtn();
     $('sent').hidden = !s.me.answer;
     $('sent').textContent = s.me.answer ? `Jouw antwoord: "${s.me.answer}". Je mag het nog veranderen.` : '';
     return show('answer');
