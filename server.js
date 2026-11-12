@@ -105,6 +105,7 @@ function buildHeadline(h) {
     before: (i > 0 ? words.slice(0, i).join(' ') + ' ' : '') + pre,
     word: core,
     after: post + (rest ? ' ' + rest : ''),
+    plain: h.plain === true,
     link: typeof h.link === 'string' && /^https?:\/\//i.test(h.link) ? h.link.slice(0, 500) : '',
   };
 }
@@ -135,7 +136,7 @@ function view(room, pid) {
   };
   const h = room.headlines[room.idx];
   if (h && (room.phase === 'answer' || room.phase === 'reveal')) {
-    s.headline = { before: h.before, after: h.after };
+    s.headline = { before: h.before, after: h.after, plain: h.plain };
     if (room.phase === 'reveal') {
       s.headline.word = h.word;
       s.headline.link = h.link;

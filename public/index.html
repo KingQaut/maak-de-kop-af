@@ -129,7 +129,8 @@ $('ansForm').addEventListener('submit', async (e) => {
 
 function render(s) {
   $('who').textContent = s.me.name;
-  const kicker = `Kop ${s.idx + 1} van ${s.total}`;
+  const plain = !!(s.headline && s.headline.plain);  // eenvoudige zin in plaats van krantenkop
+  const kicker = `${plain ? 'Zin' : 'Kop'} ${s.idx + 1} van ${s.total}`;
 
   if (s.phase === 'lobby') {
     $('lobbyPlayers').replaceChildren(...s.players.map((p) => el('span', 'chip', p.name)));
@@ -153,16 +154,17 @@ function render(s) {
     if (s.headline.link) $('rLinkA').href = s.headline.link;
     const r = $('rResult');
     r.className = 'result ' + s.me.result;
+    const src = plain ? 'Het goede woord is' : 'De krant schrijft';
     r.textContent = {
-      correct: 'Precies goed! Dit woord staat in de krant.',
-      ok: `Jouw woord "${s.me.answer}" kan ook! De krant schrijft: "${s.headline.word}".`,
-      other: `Jouw woord: "${s.me.answer}". De krant schrijft: "${s.headline.word}".`,
-      none: `De krant schrijft: "${s.headline.word}".`,
+      correct: plain ? 'Precies goed!' : 'Precies goed! Dit woord staat in de krant.',
+      ok: `Jouw woord "${s.me.answer}" kan ook! ${src}: "${s.headline.word}".`,
+      other: `Jouw woord: "${s.me.answer}". ${src}: "${s.headline.word}".`,
+      none: `${src}: "${s.headline.word}".`,
     }[s.me.result];
     $('rGuesses').replaceChildren(...s.groups.map((g) => {
       const d = el('div', 'guess' + (g.correct ? ' correct' : g.ok ? ' ok' : ''));
       d.append(el('div', 'w', g.text), el('div', 'n', g.names.join(', ')));
-      if (g.correct) d.append(el('div', 'tag', 'Zoals in de krant'));
+      if (g.correct) d.append(el('div', 'tag', plain ? 'Het goede woord' : 'Zoals in de krant'));
       else if (g.ok) d.append(el('div', 'tag', 'Kan ook!'));
       return d;
     }));

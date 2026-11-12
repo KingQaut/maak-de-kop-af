@@ -18,10 +18,10 @@
     <div class="cols">
       <div class="card">
         <h2>1. Koppen voorbereiden</h2>
-        <p class="muted small">Haal koppen van vandaag op en klik op de koppen die je wilt gebruiken. Klik daarna onderaan in elke kop op het woord dat de studenten moeten raden. De koppen blijven bewaard op deze laptop.</p>
+        <p class="muted small">Kies nieuws van vandaag of eenvoudige zinnen (A1) en klik op de regels die je wilt gebruiken. Klik daarna onderaan in elke regel op het woord dat de studenten moeten raden. De koppen blijven bewaard op deze laptop.</p>
         <div class="news">
           <div class="row">
-            <select id="feed" aria-label="Nieuwsbron"></select>
+            <select id="feed" aria-label="Bron"></select>
             <button id="fetchNews">Haal nieuws op</button>
             <button class="link" id="take5" hidden>Neem de eerste 5</button>
           </div>
@@ -112,7 +112,8 @@ function addLines(lines) {
     // Standaard: het langste woord verbergen. De docent kan een ander woord aanklikken.
     let hidden = 0;
     words.forEach((w, i) => { if (core(w).length > core(words[hidden]).length) hidden = i; });
-    heads.push({ text: words.join(' ').slice(0, 200), hidden, link: (typeof item === 'object' && item.link) || '' });
+    if (typeof item === 'object' && Number.isInteger(item.hidden) && item.hidden >= 0) hidden = item.hidden;
+    heads.push({ text: words.join(' ').slice(0, 200), hidden, link: (typeof item === 'object' && item.link) || '', plain: typeof item === 'object' && item.plain === true });
   }
   save('mdka_heads', heads);
   renderHeads();
@@ -139,6 +140,63 @@ $('add').onclick = () => { addLines($('paste').value.split('\n')); $('paste').va
 $('sample').onclick = () => addLines(SAMPLE);
 $('clear').onclick = () => { if (confirm('Alle koppen wissen?')) { heads = []; save('mdka_heads', heads); renderHeads(); renderNews(); } };
 
+// --- Eenvoudige zinnen (A1) ---
+// Het woord tussen [haken] is het woord dat de studenten raden; de docent kan een ander woord kiezen.
+const SIMPLE = {
+  dag: ['Dagelijks leven', [
+    'Ik [drink] elke ochtend koffie.', 'Hij staat om zeven uur [op].', 'Wij [eten] om zes uur.',
+    'Zij gaat elke dag naar haar [werk].', 'Ik [poets] mijn tanden.', "'s Avonds kijk ik [televisie].",
+    'Ik ga om elf uur naar [bed].', 'In het weekend [slaap] ik lang.']],
+  winkel: ['Boodschappen', [
+    'Ik koop brood bij de [bakker].', 'Hoeveel [kost] deze jas?', 'De supermarkt is vandaag [open].',
+    'Ik wil graag een kilo [appels].', 'Mag ik met pin [betalen]?', 'De melk staat in de [koelkast].',
+    'Ik heb een [tas] nodig.', 'Op zaterdag ga ik naar de [markt].']],
+  familie: ['Familie en vrienden', [
+    'Mijn [zus] woont in Rotterdam.', 'Ik heb twee [kinderen].', 'Mijn vader is zestig jaar [oud].',
+    'Wij gaan op zondag naar mijn [oma].', 'Mijn broer is [getrouwd].', 'Ik [bel] elke week met mijn moeder.',
+    'Mijn vriend komt uit [Spanje].', 'Hoe [heet] jouw dochter?']],
+  werk: ['Werk en school', [
+    'Ik [werk] in een restaurant.', 'De les begint om negen [uur].', 'Ik leer [Nederlands] op school.',
+    'Mijn collega is vandaag [ziek].', 'Ik heb morgen een [afspraak].', 'De docent [schrijft] op het bord.',
+    'Ik maak mijn [huiswerk] thuis.', 'Op vrijdag ben ik [vrij].']],
+  vervoer: ['Vervoer', [
+    'Ik ga met de [fiets] naar school.', 'De trein [vertrekt] om tien uur.', 'De bus is vandaag te [laat].',
+    'Waar is het [station]?', 'Ik koop een [kaartje] voor de tram.', 'Mijn auto staat voor het [huis].',
+    'U moet hier [links] gaan.', 'De reis duurt een [uur].']],
+  gezond: ['Gezondheid', [
+    'Ik heb pijn in mijn [hoofd].', 'Ik maak een afspraak bij de [huisarts].', 'De apotheek is om de [hoek].',
+    'Ik ben [verkouden].', 'U moet veel water [drinken].', 'Mijn kind heeft [koorts].',
+    'Ik [voel] me niet goed.', 'De tandarts kijkt naar mijn [tanden].']],
+  weer: ['Weer en seizoenen', [
+    'Vandaag schijnt de [zon].', 'Het [regent] de hele dag.', 'In de winter is het [koud].',
+    'Ik neem een [paraplu] mee.', 'Morgen wordt het twintig [graden].', 'Er staat veel [wind].',
+    'In de zomer zijn de dagen [lang].', 'In de herfst vallen de [bladeren].']],
+  wonen: ['Wonen', [
+    'Ik woon in een [flat].', 'Mijn huis heeft drie [kamers].', 'De buren zijn heel [aardig].',
+    'Ik betaal elke maand [huur].', 'De [keuken] is klein.', 'Ik zet het afval [buiten].',
+    'De verwarming staat [aan].', 'Wij hebben een kleine [tuin].']],
+};
+const simpleItems = (key) => SIMPLE[key][1].map((s) => ({
+  title: s.replace(/[\[\]]/g, ''), hidden: split(s).findIndex((w) => w.includes('[')), plain: true, link: '',
+}));
+
+function fillSources(feeds) {
+  const group = (label, opts) => {
+    const g = document.createElement('optgroup');
+    g.label = label;
+    g.append(...opts.map(([value, text]) => { const o = el('option', '', text); o.value = value; return o; }));
+    return g;
+  };
+  const groups = [group('Eenvoudige zinnen (A1)', Object.entries(SIMPLE).map(([k, v]) => ['zin:' + k, v[0]]))];
+  if (feeds.length) groups.unshift(group('Nieuws van vandaag', feeds.map((f) => [f.key, f.label])));
+  $('feed').replaceChildren(...groups);
+  updateFetchLabel();
+}
+function updateFetchLabel() {
+  $('fetchNews').textContent = $('feed').value.startsWith('zin:') ? 'Toon zinnen' : 'Haal nieuws op';
+}
+$('feed').onchange = updateFetchLabel;
+
 // --- Nieuws ophalen ---
 // Grove filter op zwaar of gevoelig nieuws. Niet waterdicht: de docent kiest zelf de koppen.
 const HEAVY = /(^|[^\p{L}])(dood|dode|overl[ei]d|sterf|stierf|gestorven|moord|oorlog|aanslag|aanval|geweld|misbruik|verkracht|steekpartij|neergesto|schiet|geschoten|bom|raket|terreur|terror|gijzel|ontvoer|ramp|slachtoffer|gewond|drugs|zelfdoding|verdachte|opgepakt|aangehouden|celstraf|gevange|asiel|verkiezing|kabinet|protest|demonstr|explosie|brand|ongeluk|crash|leger|militair|wapen)/iu;
@@ -147,7 +205,9 @@ let news = [];
 function renderNews() {
   const short = $('fShort').checked, calm = $('fCalm').checked;
   const used = new Set(heads.map((h) => h.text));
-  const shown = news.filter((n) => (!short || split(n.title).length <= 10) && (!calm || !HEAVY.test(n.title)));
+  const simple = news.some((n) => n.plain);  // de filters gelden alleen voor nieuws
+  $('newsOpts').hidden = !news.length || simple;
+  const shown = simple ? news : news.filter((n) => (!short || split(n.title).length <= 10) && (!calm || !HEAVY.test(n.title)));
   $('newsList').replaceChildren(...shown.map((n) => {
     const b = el('button', 'newsitem' + (used.has(n.title) ? ' used' : ''), (used.has(n.title) ? '✓ ' : '+ ') + n.title);
     b.disabled = used.has(n.title);
@@ -161,22 +221,21 @@ function renderNews() {
 
 $('fetchNews').onclick = async () => {
   $('newsErr').textContent = '';
+  if ($('feed').value.startsWith('zin:')) { news = simpleItems($('feed').value.slice(4)); return renderNews(); }
   $('fetchNews').disabled = true;
   try {
     const r = await fetch('/api/news?feed=' + encodeURIComponent($('feed').value), { cache: 'no-store' });
     const data = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(data.error || 'Nieuws ophalen lukt nu niet.');
     news = data.items;
-    $('newsOpts').hidden = false;
   } catch (e) { news = []; $('newsErr').textContent = e.message; }
   $('fetchNews').disabled = false;
   renderNews();
 };
 $('fShort').onchange = $('fCalm').onchange = renderNews;
 
-fetch('/api/news').then((r) => r.json()).then((d) => {
-  $('feed').replaceChildren(...d.feeds.map((f) => { const o = el('option', '', f.label); o.value = f.key; return o; }));
-}).catch(() => {});
+fillSources([]);
+fetch('/api/news').then((r) => r.json()).then((d) => fillSources(d.feeds)).catch(() => {});
 
 async function post(path, body) {
   const r = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
@@ -204,7 +263,7 @@ async function host(action, extra) {
 
 $('start').onclick = () => {
   if (!heads.length) {
-    $('err').textContent = 'Kies eerst een kop bij stap 1: klik op een kop uit het nieuws, of typ zelf een kop en klik op Toevoegen.';
+    $('err').textContent = 'Kies eerst een kop of zin bij stap 1: klik op een regel uit de lijst, of typ er zelf een en klik op Toevoegen.';
     return;
   }
   host('start', { headlines: heads });
@@ -233,7 +292,8 @@ function renderJoin() {
 }
 
 function render(s) {
-  const kicker = `Kop ${s.idx + 1} van ${s.total}`;
+  const plain = !!(s.headline && s.headline.plain);  // eenvoudige zin in plaats van krantenkop
+  const kicker = `${plain ? 'Zin' : 'Kop'} ${s.idx + 1} van ${s.total}`;
   if (s.phase === 'lobby') {
     $('players').replaceChildren(...s.players.map((p) => {
       const c = el('span', 'chip', p.name);
@@ -262,7 +322,7 @@ function render(s) {
     $('rGuesses').replaceChildren(...s.groups.map((g) => {
       const b = el('button', 'guess' + (g.correct ? ' correct' : g.ok ? ' ok' : ''));
       b.append(el('div', 'w', g.text), el('div', 'n', g.names.join(', ')));
-      if (g.correct) { b.append(el('div', 'tag', 'Zoals in de krant')); b.disabled = true; b.style.opacity = 1; }
+      if (g.correct) { b.append(el('div', 'tag', plain ? 'Het goede woord' : 'Zoals in de krant')); b.disabled = true; b.style.opacity = 1; }
       else {
         if (g.ok) b.append(el('div', 'tag', 'Kan ook!'));
         b.onclick = () => host('mark', { key: g.key });
