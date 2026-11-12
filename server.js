@@ -20,7 +20,68 @@ const STATIC = {
   '/qrcode.js': ['qrcode.js', 'text/javascript; charset=utf-8'],
 };
 
-const EDGE = /^([^\p{L}\p{N}]*)(.*?)([^\p{L}\p{N}]*)$/u;
+// Nieuwsbronnen (RSS). Aanpassen kan met de omgevingsvariabele NEWS_FEEDS:
+// een JSON-object in dezelfde vorm, bv. {"eigen":{"label":"Mijn bron","url":"https://..."}}
+let FEEDS = {
+  jeugd: { label: 'NOS Jeugdjournaal (makkelijk)', url: 'https://feeds.nos.nl/jeugdjournaal' },
+  algemeen: { label: 'NOS Nieuws', url: 'https://feeds.nos.nl/nosnieuwsalgemeen' },
+  binnenland: { label: 'NOS Binnenland', url: 'https://feeds.nos.nl/nosnieuwsbinnenland' },
+  buitenland: { label: 'NOS Buitenland', url: 'https://feeds.nos.nl/nosnieuwsbuitenland' },
+  sport: { label: 'NOS Sport', url: 'https://feeds.nos.nl/nossportalgemeen' },
+  cultuur: { label: 'NOS Cultuur en media', url: 'https://feeds.nos.nl/nosnieuwscultuurenmedia' },
+  tech: { label: 'NOS Tech', url: 'https://feeds.nos.nl/nosnieuwstech' },
+};
+if (process.env.NEWS_FEEDS) {
+  try { FEEDS = JSON.parse(process.env.NEWS_FEEDS); } catch { console.error('NEWS_FEEDS is geen geldige JSON; standaardbronnen gebruikt.'); }
+}
+const NEWS_CACHE_MS = 10 * 60 * 1000;
+const newsCache = new Map(); // key -> {at, items}
+
+const ENTITIES = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ' };
+function decode(s) {
+  return s.replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi, (m, e) => {
+    if (e[0] !== '#') return ENTITIES[e.toLowerCase()] ?? m;
+    const n = e[1].toLowerCase() === 'x' ? parseInt(e.slice(2), 16) : parseInt(e.slice(1), 10);
+    return n > 0 && n <= 0x10ffff ? String.fromCodePoint(n) : '';
+  });
+}
+function tagText(block, tag) {
+  const m = block.match(new RegExp(`<${tag}(?:\\s[^>]*)?>([\\s\\S]*?)</${tag}>`, 'i'));
+  if (!m) return '';
+  const raw = m[1].replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1');
+  // Twee keer decoderen vangt dubbel gecodeerde feeds op; daarna eventuele HTML weghalen.
+  return decode(decode(raw).replace(/<[^>]+>/g, '')).replace(/\s+/g, ' ').trim();
+}
+function parseFeed(xml) {
+  const blocks = xml.match(/<(item|entry)[\s>][\s\S]*?<\/\1>/gi) || [];
+  const seen = new Set();
+  const items = [];
+  for (const b of blocks) {
+    const title = tagText(b, 'title').slice(0, 200);
+    if (!title || seen.has(title)) continue;
+    seen.add(title);
+    let link = tagText(b, 'link');
+    if (!link) link = decode((b.match(/<link[^>]*\shref=["']([^"']+)["']/i) || [])[1] || '');
+    items.push({ title, link: /^https?:\/\//i.test(link) ? link : '' });
+    if (items.length >= 40) break;
+  }
+  return items;
+}
+async function getNews(key) {
+  const hit = newsCache.get(key);
+  if (hit && Date.now() - hit.at < NEWS_CACHE_MS) return hit.items;
+  const r = await fetch(FEEDS[key].url, {
+    signal: AbortSignal.timeout(8000),
+    headers: { 'User-Agent': 'classroom-headline-game/1.0', Accept: 'application/rss+xml, application/atom+xml, application/xml, text/xml' },
+  });
+  if (!r.ok) throw new Error('HTTP ' + r.status);
+  const items = parseFeed((await r.text()).slice(0, 2000000));
+  if (!items.length) throw new Error('geen koppen gevonden');
+  newsCache.set(key, { at: Date.now(), items });
+  return items;
+}
+
+const EDGE =/^([^\p{L}\p{N}]*)(.*?)([^\p{L}\p{N}]*)$/u;
 const norm = (s) => String(s).trim().toLowerCase().match(EDGE)[2];
 
 function newCode() {
@@ -159,6 +220,16 @@ function hostAction(room, b) {
 
 async function api(req, res, url) {
   const parts = url.pathname.split('/').filter(Boolean); // api, room, CODE, action
+  if (parts[1] === 'news' && req.method === 'GET') {
+    const key = url.searchParams.get('feed');
+    if (!key) return send(res, 200, { feeds: Object.entries(FEEDS).map(([k, f]) => ({ key: k, label: f.label })) });
+    if (!Object.hasOwn(FEEDS, key)) return send(res, 404, { error: 'Onbekende bron.' });
+    try {
+      return send(res, 200, { label: FEEDS[key].label, items: await getNews(key) });
+    } catch (e) {
+      return send(res, 502, { error: `Deze bron geeft nu geen nieuws (${e.message}). Probeer een andere bron.` });
+    }
+  }
   if (parts[1] !== 'room') return send(res, 404, { error: 'Niet gevonden.' });
 
   if (parts.length === 2 && req.method === 'POST') {

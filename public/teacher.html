@@ -18,7 +18,21 @@
     <div class="cols">
       <div class="card">
         <h2>1. Koppen voorbereiden</h2>
-        <p class="muted small">Plak krantenkoppen, één per regel. Klik daarna in elke kop op het woord dat de studenten moeten raden. De koppen blijven bewaard op deze laptop.</p>
+        <p class="muted small">Haal koppen van vandaag op en klik op de koppen die je wilt gebruiken. Klik daarna onderaan in elke kop op het woord dat de studenten moeten raden. De koppen blijven bewaard op deze laptop.</p>
+        <div class="news">
+          <div class="row">
+            <select id="feed" aria-label="Nieuwsbron"></select>
+            <button id="fetchNews">Haal nieuws op</button>
+            <button class="link" id="take5" hidden>Neem de eerste 5</button>
+          </div>
+          <div class="row small" id="newsOpts" hidden>
+            <label class="check"><input type="checkbox" id="fShort" checked> Alleen korte koppen (max. 10 woorden)</label>
+            <label class="check"><input type="checkbox" id="fCalm" checked> Verberg zwaar nieuws</label>
+          </div>
+          <div class="error" id="newsErr"></div>
+          <div id="newsList"></div>
+        </div>
+        <p class="muted small">Of typ of plak zelf koppen:</p>
         <textarea id="paste" placeholder="Bijvoorbeeld:&#10;Nieuwe fietsbrug in Utrecht is klaar"></textarea>
         <div class="row" style="margin-top:10px">
           <button id="add">Toevoegen</button>
@@ -113,7 +127,7 @@ function renderHeads() {
       words.append(b);
     });
     const del = el('button', 'link', 'Wis');
-    del.onclick = () => { heads.splice(hi, 1); save('mdka_heads', heads); renderHeads(); };
+    del.onclick = () => { heads.splice(hi, 1); save('mdka_heads', heads); renderHeads(); renderNews(); };
     row.append(words, del);
     return row;
   }));
@@ -122,7 +136,46 @@ function renderHeads() {
 
 $('add').onclick = () => { addLines($('paste').value.split('\n')); $('paste').value = ''; };
 $('sample').onclick = () => addLines(SAMPLE);
-$('clear').onclick = () => { if (confirm('Alle koppen wissen?')) { heads = []; save('mdka_heads', heads); renderHeads(); } };
+$('clear').onclick = () => { if (confirm('Alle koppen wissen?')) { heads = []; save('mdka_heads', heads); renderHeads(); renderNews(); } };
+
+// --- Nieuws ophalen ---
+// Grove filter op zwaar of gevoelig nieuws. Niet waterdicht: de docent kiest zelf de koppen.
+const HEAVY = /(^|[^\p{L}])(dood|dode|overl[ei]d|sterf|stierf|gestorven|moord|oorlog|aanslag|aanval|geweld|misbruik|verkracht|steekpartij|neergesto|schiet|geschoten|bom|raket|terreur|terror|gijzel|ontvoer|ramp|slachtoffer|gewond|drugs|zelfdoding|verdachte|opgepakt|aangehouden|celstraf|gevange|asiel|verkiezing|kabinet|protest|demonstr|explosie|brand|ongeluk|crash|leger|militair|wapen)/iu;
+let news = [];
+
+function renderNews() {
+  const short = $('fShort').checked, calm = $('fCalm').checked;
+  const used = new Set(heads.map((h) => h.text));
+  const shown = news.filter((n) => (!short || split(n.title).length <= 10) && (!calm || !HEAVY.test(n.title)));
+  $('newsList').replaceChildren(...shown.map((n) => {
+    const b = el('button', 'newsitem' + (used.has(n.title) ? ' used' : ''), (used.has(n.title) ? '✓ ' : '+ ') + n.title);
+    b.disabled = used.has(n.title);
+    b.onclick = () => { addLines([n.title]); renderNews(); };
+    return b;
+  }));
+  if (news.length && !shown.length) $('newsList').replaceChildren(el('p', 'muted small', 'Geen koppen met deze filters. Zet een filter uit of kies een andere bron.'));
+  $('take5').hidden = !shown.some((n) => !used.has(n.title));
+  $('take5').onclick = () => { addLines(shown.filter((n) => !used.has(n.title)).slice(0, 5).map((n) => n.title)); renderNews(); };
+}
+
+$('fetchNews').onclick = async () => {
+  $('newsErr').textContent = '';
+  $('fetchNews').disabled = true;
+  try {
+    const r = await fetch('/api/news?feed=' + encodeURIComponent($('feed').value), { cache: 'no-store' });
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(data.error || 'Nieuws ophalen lukt nu niet.');
+    news = data.items;
+    $('newsOpts').hidden = false;
+  } catch (e) { news = []; $('newsErr').textContent = e.message; }
+  $('fetchNews').disabled = false;
+  renderNews();
+};
+$('fShort').onchange = $('fCalm').onchange = renderNews;
+
+fetch('/api/news').then((r) => r.json()).then((d) => {
+  $('feed').replaceChildren(...d.feeds.map((f) => { const o = el('option', '', f.label); o.value = f.key; return o; }));
+}).catch(() => {});
 
 async function post(path, body) {
   const r = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });

@@ -29,3 +29,16 @@ Alleen de docent heeft daar een account nodig; studenten niet.
   browser van de docent.
 - De QR-code gebruikt het adres waarop de docent de pagina zelf heeft geopend.
 - `public/qrcode.js` is de bibliotheek qrcode-generator van Kazuhiko Arase (MIT-licentie).
+
+## Nieuws ophalen
+
+Op de docentpagina haalt de knop **Haal nieuws op** de koppen van vandaag op uit een
+RSS-bron (standaard de openbare feeds van de NOS). De docent klikt de koppen aan die in
+het spel komen. Twee filters staan standaard aan: alleen korte koppen, en zwaar nieuws
+verbergen (een eenvoudige woordenlijst, niet waterdicht).
+
+Andere bronnen instellen kan met de omgevingsvariabele `NEWS_FEEDS`, bijvoorbeeld:
+
+```bash
+NEWS_FEEDS='{"eigen":{"label":"Mijn bron","url":"https://voorbeeld.nl/rss"}}' node server.js
+```
