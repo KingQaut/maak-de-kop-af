@@ -52,6 +52,7 @@
   <section id="reveal" hidden>
     <div class="kicker" id="rKicker"></div>
     <p class="headline" id="rHeadline"></p>
+    <p class="article" id="rLink" hidden><a id="rLinkA" target="_blank" rel="noopener noreferrer">Lees het artikel ↗</a></p>
     <div class="result" id="rResult"></div>
     <h2>Alle antwoorden</h2>
     <div class="guesses" id="rGuesses"></div>
@@ -148,6 +149,8 @@ function render(s) {
   if (s.phase === 'reveal') {
     $('rKicker').textContent = kicker;
     headline($('rHeadline'), s.headline);
+    $('rLink').hidden = !s.headline.link;
+    if (s.headline.link) $('rLinkA').href = s.headline.link;
     const r = $('rResult');
     r.className = 'result ' + s.me.result;
     r.textContent = {

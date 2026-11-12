@@ -67,6 +67,7 @@
   <section id="reveal" hidden>
     <div class="kicker" id="rKicker"></div>
     <p class="headline" id="rHeadline"></p>
+    <p class="article" id="rLink" hidden><a id="rLinkA" target="_blank" rel="noopener noreferrer">Lees het artikel ↗</a></p>
     <div class="guesses" id="rGuesses"></div>
     <div class="bar">
       <span class="muted small">Klik op een antwoord dat ook goed Nederlands is: dan krijgt het "Kan ook!".</span>
@@ -104,13 +105,14 @@ const core = (w) => w.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, '');
 const split = (t) => t.trim().split(/\s+/).filter(Boolean);
 
 function addLines(lines) {
-  for (const line of lines) {
-    const words = split(line);
+  for (const item of lines) {
+    // Een regel tekst, of een nieuwsbericht {title, link}.
+    const words = split(typeof item === 'string' ? item : item.title);
     if (!words.some(core)) continue;
     // Standaard: het langste woord verbergen. De docent kan een ander woord aanklikken.
     let hidden = 0;
     words.forEach((w, i) => { if (core(w).length > core(words[hidden]).length) hidden = i; });
-    heads.push({ text: words.join(' ').slice(0, 200), hidden });
+    heads.push({ text: words.join(' ').slice(0, 200), hidden, link: (typeof item === 'object' && item.link) || '' });
   }
   save('mdka_heads', heads);
   renderHeads();
@@ -149,12 +151,12 @@ function renderNews() {
   $('newsList').replaceChildren(...shown.map((n) => {
     const b = el('button', 'newsitem' + (used.has(n.title) ? ' used' : ''), (used.has(n.title) ? '✓ ' : '+ ') + n.title);
     b.disabled = used.has(n.title);
-    b.onclick = () => { addLines([n.title]); renderNews(); };
+    b.onclick = () => { addLines([n]); renderNews(); };
     return b;
   }));
   if (news.length && !shown.length) $('newsList').replaceChildren(el('p', 'muted small', 'Geen koppen met deze filters. Zet een filter uit of kies een andere bron.'));
   $('take5').hidden = !shown.some((n) => !used.has(n.title));
-  $('take5').onclick = () => { addLines(shown.filter((n) => !used.has(n.title)).slice(0, 5).map((n) => n.title)); renderNews(); };
+  $('take5').onclick = () => { addLines(shown.filter((n) => !used.has(n.title)).slice(0, 5)); renderNews(); };
 }
 
 $('fetchNews').onclick = async () => {
@@ -255,6 +257,8 @@ function render(s) {
   if (s.phase === 'reveal') {
     $('rKicker').textContent = kicker;
     headline($('rHeadline'), s.headline);
+    $('rLink').hidden = !s.headline.link;
+    if (s.headline.link) $('rLinkA').href = s.headline.link;
     $('rGuesses').replaceChildren(...s.groups.map((g) => {
       const b = el('button', 'guess' + (g.correct ? ' correct' : g.ok ? ' ok' : ''));
       b.append(el('div', 'w', g.text), el('div', 'n', g.names.join(', ')));

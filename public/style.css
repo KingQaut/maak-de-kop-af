@@ -122,3 +122,5 @@ label.check { display: inline-flex; align-items: center; gap: 6px; font-weight: 
 .newsitem:hover:not(:disabled) { background: #fff; }
 .newsitem.used { color: var(--good); opacity: 1; }
 button.primary.sent { background: var(--good); border-color: var(--good); }
+.article { margin: -6px 0 16px; }
+.article a { color: var(--accent); font-weight: 600; }
