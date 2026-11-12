@@ -131,7 +131,6 @@ function renderHeads() {
     row.append(words, del);
     return row;
   }));
-  $('start').disabled = heads.length === 0;
 }
 
 $('add').onclick = () => { addLines($('paste').value.split('\n')); $('paste').value = ''; };
@@ -180,7 +179,7 @@ fetch('/api/news').then((r) => r.json()).then((d) => {
 async function post(path, body) {
   const r = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
   const data = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(data.error || 'Er ging iets mis.');
+  if (!r.ok) { const e = new Error(data.error || 'Er ging iets mis.'); e.status = r.status; throw e; }
   return data;
 }
 async function host(action, extra) {
@@ -188,10 +187,26 @@ async function host(action, extra) {
   try {
     await post(`/api/room/${room.code}/host`, { hostKey: room.hostKey, action, ...extra });
     poll();
-  } catch (e) { $('err').textContent = e.message; }
+  } catch (e) {
+    if (e.status === 404 || e.status === 403) {
+      // De server is opnieuw gestart en kent deze klas niet meer: maak een nieuwe.
+      try { room = null; await ensureRoom(); renderJoin(); lastSig = ''; await poll(); } catch {}
+      alert('De server is opnieuw gestart. Er is een nieuwe code. Laat de studenten de QR-code opnieuw scannen en klik daarna weer op de knop.');
+    } else if (e.status) {
+      $('err').textContent = e.message;
+    } else {
+      $('err').textContent = 'Geen verbinding met de server. Wacht even en probeer het opnieuw.';
+    }
+  }
 }
 
-$('start').onclick = () => host('start', { headlines: heads });
+$('start').onclick = () => {
+  if (!heads.length) {
+    $('err').textContent = 'Kies eerst een kop bij stap 1: klik op een kop uit het nieuws, of typ zelf een kop en klik op Toevoegen.';
+    return;
+  }
+  host('start', { headlines: heads });
+};
 $('revealBtn').onclick = () => host('reveal');
 $('nextBtn').onclick = () => host('next');
 $('againBtn').onclick = () => host('lobby');
